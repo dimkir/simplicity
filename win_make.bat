@@ -11,7 +11,7 @@ GOTO L_END
 
 :L_FAILURE
 
-echo "Error compiling skipping creating JAR"
+echo "Error compiling skipping creating JAR."
 
 
 :L_END
