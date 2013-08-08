@@ -1,0 +1,1 @@
+Edit library path in [win_dist.bat] file.

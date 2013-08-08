@@ -1,0 +1,2 @@
+1) Make sure you copy into [lib] directory files [core.jar] and [rt.jar] from your processing distribution.
+2) all your source files are in the directory [src] be sure to use the suggested directory structure.
