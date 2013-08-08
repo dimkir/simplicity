@@ -1,5 +1,5 @@
 1) Make sure you copy into [lib] directory files [core.jar] and [rt.jar]
-from your processing distribution.
+from your processing distribution..
 
 2) Be sure to change library destination path inside the [win_dist.bat] to the libraries folder
 within your sketchbook folder.
