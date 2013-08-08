@@ -1,2 +1,7 @@
-1) Make sure you copy into [lib] directory files [core.jar] and [rt.jar] from your processing distribution.
-2) all your source files are in the directory [src] be sure to use the suggested directory structure.
+1) Make sure you copy into [lib] directory files [core.jar] and [rt.jar]
+from your processing distribution.
+
+2) Be sure to change library destination path inside the [win_dist.bat] to the libraries folder
+within your sketchbook folder.
+
+3) Remember , that all your source files are in the directory [src] be sure to use the suggested directory structure.
