@@ -1,6 +1,8 @@
+import java.nio.channels.FileChannel;
 import java.io.File;
 import java.io.StringReader;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.InputStream;
@@ -23,7 +25,7 @@ class LibMake
 		/**
 		* Attempts to make library.
 		*/
-		public void make() throws WinMakeEx
+		public void make() throws LibMakeEx
 		{
 		     int lineOffset = C_DEF_OFFSET;
 			 linePrint("Compiling library" ,  lineOffset, '-');
@@ -48,9 +50,9 @@ class LibMake
 				linePrint("Starting building library from Simplicity template", 0, '=');
 				try
 				{
-				   new  WinMake().make();
+				   new  LibMake().make();
 				}
-				catch(WinMakeEx ex){
+				catch(LibMakeEx ex){
 				   dprintln("-------------------------------------------------------");
 				   dprintln("******Error occured during making: " + ex.getMessage());
 				   ex.printStackTrace();
@@ -100,9 +102,9 @@ class LibMake
 		/**
 		* Attempts to compile classes in the subdirectory structure.
 		* If compiler results in error, then prints out stderr to console.
-		* And throws WinMakeEx exception.
+		* And throws LibMakeEx exception.
 		*/
-		void compileClasses(int lineOffset) throws WinMakeEx
+		void compileClasses(int lineOffset) throws LibMakeEx
 		{
 				    Process p;
 					String cmd = "../java/bin/javac -d bin -target 1.6 -source 1.6 -sourcepath src -cp ../core/library/core.jar src/simplicity/*.java  -bootclasspath ../java/lib/rt.jar";
@@ -116,7 +118,7 @@ class LibMake
 					  if ( rez != 0 ){  // error
 					     // output error buffer
 						 printStream(p.getErrorStream(), lineOffset);
-						 throw new WinMakeEx("Compile failed with code: " + rez);
+						 throw new LibMakeEx("Compile failed with code: " + rez);
 					  }
 					  
 					  printStream(p.getInputStream(), lineOffset);
@@ -152,7 +154,7 @@ class LibMake
 		}
 
 		
-		static void packClassesIntoJAR(int outputPaddingOffset) throws WinMakeEx
+		static void packClassesIntoJAR(int outputPaddingOffset) throws LibMakeEx
 		{
 					Process p;
 					File newWorkingDirectory = dirRelativeToCurrent("bin");
@@ -184,7 +186,7 @@ class LibMake
 					  if ( rez != 0 ){  // error
 					     // output error buffer
 						 printStream(p.getErrorStream(), outputPaddingOffset);
-						 throw new WinMakeEx("JARring failed with code: " + rez);
+						 throw new LibMakeEx("JARring failed with code: " + rez);
 					  }
 					  
 					  printStream(p.getInputStream(), outputPaddingOffset);
@@ -213,11 +215,17 @@ class LibMake
 		* Copies library (library directory structure) into the sketchbook folder.
 		*
 		*/
-		static void putLibraryIntoSketchbookFolder(int outputOffset){
+		static void putLibraryIntoSketchbookFolder(int outputOffset) throws LibMakeEx
+		{
+			try{
 		     File sketchBookFolder = getSketchBookFolderPath();
 			 File libraryFolder = new File(sketchBookFolder, "libraries");
 			 File distFolder = new File("dist");
-			 copyDirectoryContentsFrom(distFolder, libraryFolder, outputOffset);
+			 copyDirectoryContentsFrom(distFolder, libraryFolder, outputOffset); // this one throws IOException
+			}
+			catch(IOException ioex){
+				throw new LibMakeEx(ioex);
+			}
 		}
 		
 		
@@ -249,7 +257,7 @@ class LibMake
 				   throw new RuntimeException(ioex); 
 				}
 			
-			dprintln("Received path from preferences[" + pathFromPreferences + "]");
+			//dprintln("Received path from preferences[" + pathFromPreferences + "]");
 			if ( pathFromPreferences == null ){
 			   throw new RuntimeException("Fatal error: cannot find sketchbook path in preferences.txt");
 			}
@@ -274,22 +282,84 @@ class LibMake
 		}
 		
 		
+		//*******************************************************************************************
+		//*******************************************************************************************
+		//***************** copying directories *****************************************************
+		//*******************************************************************************************		
+		//*******************************************************************************************
 		/**
 		* Copies contents of the directory srcDirWithContents into destDirWithContents.
 		* Assumes that all directories exist. 
 		* Will create file strcuture beneath destDirWithContents.
 		* Will overwrite files beneath destDirWithContents.
 		*/
-		private static void copyDirectoryContentsFrom(File srcDirWithContents, File destDirWithContents, int outputOffset)
+		private static void copyDirectoryContentsFrom(File srcDirWithContents, File destDirWithContents, int outputOffset) throws IOException
 		{
-			dprintln("Not implemented ... " , outputOffset);
-		    String msg = String.format("Simulating copying contents of directory [%s] to directory [%s]", 
+			
+		    String msg = String.format("Exporting library from [%s] to directory [%s]", 
 											srcDirWithContents.getAbsolutePath(),
 											destDirWithContents
 									   );
 									
 		    dprintln(msg, outputOffset);
+			
+			copyFolder(new File(srcDirWithContents, "simplicity"), destDirWithContents, outputOffset);
+			
 		}
+		
+
+		/**
+		* TODO: this function should actually be properly tested. I just write it off top of my head,
+		*  but it MAY bring surprises.
+		* Copies file/directory into folder specified by 2nd parameter.
+		* Partially tfaken from {@link http://www.mkyong.com/java/how-to-copy-directory-in-java/}
+		* @param src file or directory to be copied.
+		* @param dest EXISTING DIRECTORY (can't be file)  where the file/folder should be copied
+		* @throws IOException in case there's error copying.
+		* @throws IllegalArgumentException if the second parameter is NOT a directory
+		*/
+		public static void copyFolder(File src, File dest, int outputOffset) throws IOException{
+	 
+			if ( !dest.isDirectory() ){
+				throw new IllegalArgumentException("copyFolder():: dest parameter MUST be directory, now pointing to : " + dest.getAbsolutePath());
+			}
+			
+			if(src.isDirectory()){  // copying DIRECTORY to DIRECTORY
+				// **** create "target directory" the directory with same name as src-directory but inside the destination
+
+				File target = new File(dest, src.getName() );
+				if(!target.exists()){
+				   target.mkdir();
+				   dprintln("Made directory: ["  + target.getAbsolutePath() + "]" );
+				}
+				
+				// iterate over files (except but "." and ".." ) 
+				// and copy them. via myself
+	 
+				//list all the directory contents
+				String files[] = src.list();
+	 
+				for (String file : files) {
+				   //construct the src and dest file structure
+				   if ( 
+							file.equals(".") ||
+							file.equals("..") 
+						){
+							continue; // skip them files.
+						}
+						
+				   File srcFile = new File(src, file);
+				   //recursive copy
+				   copyFolder(srcFile,target, outputOffset);
+				}
+	 
+			}else{ // copying FILE to DIRECTORY
+				copyFile(src, new File(dest, src.getName() ) , outputOffset);
+
+			}
+		}		
+		
+		
 		
 		private static void dprintln(String msg){
 		   System.out.println(msg);
@@ -325,9 +395,14 @@ class LibMake
 		/**
 		* Our local exception
 		*/
-		static class WinMakeEx extends Exception
+		static class LibMakeEx extends Exception
 		{
-		    WinMakeEx(String msg){
+			LibMakeEx(Exception ex){
+				super(ex);
+			}
+		
+		
+		    LibMakeEx(String msg){
 				super(msg);
 			}
 		}
@@ -359,5 +434,34 @@ class LibMake
 					
 					return sb.toString();
 		}
+		
+
+		/**
+		* Just copies regular file using Java NIO (1.6jdk compatible);
+		*/
+		public static void copyFile(File sourceFile, File destFile, int outOffset) throws IOException {
+			String msg = String.format("Copying file [%s] to [%s]", sourceFile.getName(), destFile.getName() );
+			dprintln(msg, outOffset);
+			if(!destFile.exists()) {
+				destFile.createNewFile();
+			}
+
+			FileChannel source = null;
+			FileChannel destination = null;
+
+			try {
+				source = new FileInputStream(sourceFile).getChannel();
+				destination = new FileOutputStream(destFile).getChannel();
+				destination.transferFrom(source, 0, source.size());
+			}
+			finally {
+				if(source != null) {
+					source.close();
+				}
+				if(destination != null) {
+					destination.close();
+				}
+			}
+		}		
   
 }
