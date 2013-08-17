@@ -106,11 +106,26 @@ class LibMake
 		*/
 		void compileClasses(int lineOffset) throws LibMakeEx
 		{
+				String wkd = System.getProperty("user.dir");
+				System.out.println("Working Directory: " + wkd);
 				    Process p;
-					String cmd = "../java/bin/javac -d bin -target 1.6 -source 1.6 -sourcepath src -cp ../core/library/core.jar src/simplicity/*.java  -bootclasspath ../java/lib/rt.jar";
+					String cmd = "../java/bin/javac -verbose -d bin -target 1.6 -source 1.6 -sourcepath src -cp ../core/library/core.jar src/simplicity/*.java  -bootclasspath ../java/lib/rt.jar";
+					String[] arcmd = { "../java/bin/javac",
+								
+							   "-verbose",
+							   "-d", "bin",
+							   "-target" , "1.6",
+							   "-source", "1.6",
+							   "-sourcepath", wkd + File.separator  + "src",
+							   "-cp", "../core/library/core.jar",
+							   "-bootclasspath",  "../java/lib/rt.jar",
+							   "src/simplicity/BouncingBall.java"
+
+							};
 					try
 					{
-					 p = Runtime.getRuntime().exec(cmd);
+					 // p = Runtime.getRuntime().exec(cmd);
+					 p = Runtime.getRuntime().exec(arcmd);
 					  int rez = p.waitFor();
 
 					  dprintln("Exit result returned: " + rez, lineOffset);

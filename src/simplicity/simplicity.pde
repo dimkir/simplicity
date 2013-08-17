@@ -1,3 +1,19 @@
+/**
+* Remember when you develop your library using this template and
+* this specific sketch, you need to have line "package simplicity;" be commented off
+* on top of any of the *.java files you're working on.
+*
+* Whereas when you finished testing your library here in this Sketch
+* and want to compile it to standalone library, you must have 
+* as the first line of each of the java file:
+package simpilicity;
+*
+* If you don't do that, other sketches won't be able to see your classes
+* eg. BouncingBall and will be telling you that they can't find class named "BouncingBall".
+*/
+
+
+BouncingBall ball;
 void setup()
 {
      size(800,600);
