@@ -244,12 +244,13 @@ class LibMake
 					//String cmd = jarExe +  " cfv ../dist/simplicity/library/simplicity.jar  * ";
                                         ArrayList<String> newCmdArlis = new ArrayList<String>();
 //					String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar", "*" };
-					String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar"};  // we'll add all files to the end of array as sep entries
+					String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar", "." };
+					//String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar"};  // we'll add all files to the end of array as sep entries
                                         Collections.addAll(newCmdArlis, cmdArray);
                                         
                                         // add filenmes to newCmdArlis
                                         //????
-                                        addFileListToArlis(newCmdArlis, newWorkingDirectory.getAbsolutePath()  ,  C_DEFAULT_ALL_NON_DIRECTORIES_FILE_FILTER);
+                                        //addFileListToArlis(newCmdArlis, newWorkingDirectory.getAbsolutePath()  ,  C_DEFAULT_ALL_NON_DIRECTORIES_FILE_FILTER);
                                                 
                                         String[] newCmdArray = new String[newCmdArlis.size()];
                                         newCmdArray = newCmdArlis.toArray(newCmdArray);
