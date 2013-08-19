@@ -365,9 +365,9 @@ class LibMake
                  * (From user dir from subdirectory .processing
                  */
                 private static String getPreferencesTxtPathFromLinux(){
-		    String USER_DIR = System.getProperty("user.dir");
+		    String USER_DIR = System.getProperty("user.home");
 			if ( USER_DIR == null ){
-			   throw new RuntimeException("Error cannot get 'user.dir' property. Are you running on Linux?");
+			   throw new RuntimeException("Error cannot get 'user.home' property. Are you sure you're running on Linux?");
 			}
 			return USER_DIR + File.separator + ".processing" +  File.separator + "preferences.txt";                    
                 }                
