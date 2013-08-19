@@ -1,6 +1,6 @@
 #!/bin/sh
 
-"../java/bin/java" LibMake
+"../java/bin/java" -cp build LibMake
 
 pause
 
