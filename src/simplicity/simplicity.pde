@@ -14,17 +14,23 @@ package simpilicity;
 
 
 BouncingBall ball;
+StarField sfield;
 void setup()
 {
      size(800,600);
    ball = new BouncingBall(width, height);
+   sfield = new StarField(width, height, 100, this);
 
 }
 
 void draw(){
-  background(0);
+   background(0);
+
    randomShape();
    ball.update();
+   
+   sfield.draw();
+   sfield.step();
 }
 
 

@@ -39,7 +39,7 @@ public class BouncingBall
    * PRE-CONDITION:
    *  ball is in valid location.
    */   
-   public void update(){
+   public void step(){
        x += vx;
        y += vy;
        println("before checkEdges(" + toString() + ") velocity(" + vx + ", " + vy + ")");
