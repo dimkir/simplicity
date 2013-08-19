@@ -1,3 +1,3 @@
 @echo off
-"../java/bin/javac" LibMake.java
+"../java/bin/javac" -d build LibMake.java
 pause
