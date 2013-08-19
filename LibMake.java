@@ -158,7 +158,7 @@ class LibMake
                                                                             // so it seems convenient to keep it like that
                                                         
                                         
-                                        addFileListToArlis(cmdArlis, srcDir); // searches directory for java files
+                                        addFileListToArlis(cmdArlis, srcDir, C_DFAULT_ALL_JAVA_FILE_FILTER); // searches directory for java files
                                                                               // and adds their full path to arlis
                                         String[] newCmdArray  = new String[cmdArlis.size()];
                                         newCmdArray = cmdArlis.toArray(newCmdArray);
@@ -242,14 +242,25 @@ class LibMake
 					//String cmd = jarPath + "  " + " cfv ../dist/simplicity/library/simplicity.jar  * ";
 					//String cmd = "jar cfv ../dist/simplicity/library/simplicity.jar  * ";
 					//String cmd = jarExe +  " cfv ../dist/simplicity/library/simplicity.jar  * ";
-					String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar", "*" };
+                                        ArrayList<String> newCmdArlis = new ArrayList<String>();
+//					String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar", "*" };
+					String[] cmdArray = { jarExe, "cfv", "../dist/simplicity/library/simplicity.jar"};  // we'll add all files to the end of array as sep entries
+                                        Collections.addAll(newCmdArlis, cmdArray);
+                                        
+                                        // add filenmes to newCmdArlis
+                                        //????
+                                        addFileListToArlis(newCmdArlis, newWorkingDirectory.getAbsolutePath()  ,  C_DEFAULT_ALL_NON_DIRECTORIES_FILE_FILTER);
+                                                
+                                        String[] newCmdArray = new String[newCmdArlis.size()];
+                                        newCmdArray = newCmdArlis.toArray(newCmdArray);
+                                        
 					try
 					{
 					 //p = Runtime.getRuntime().exec(cmd, null, newWorkingDirectory);
 //					 p = Runtime.getRuntime().exec(cmdArray, null, newWorkingDirectory);
 //					  int rez = p.waitFor();
                                           
-                                          int rez = safeExec(cmdArray, null, newWorkingDirectory, new IConLogger() { 
+                                          int rez = safeExec(newCmdArray, null, newWorkingDirectory, new IConLogger() { 
                                                public void conLogLn(String msg){
                                                    dprintln(msg, outputPaddingOffset);
                                                }
@@ -518,24 +529,45 @@ class LibMake
                  * We asssume that neither "src" dir neither subdirectories nor files
                  * have spaces in their names
                  */
-                static String getFileListAsString(String srcDir) {
+                static String getFileListAsString(String srcDir, FileFilter customFileFilter) {
                     ArrayList<String> filePathes = new ArrayList<String>();
                     File root = new File(srcDir);
-                    traverse(root, filePathes);
+                    traverse(root, filePathes, customFileFilter);
                     return arlisToString(filePathes, ' ');
                 }
                 
-                static void addFileListToArlis(ArrayList<String> arlis, String srcDir){
+                
+                /**
+                 * 
+                 * @param arlis
+                 * @param srcDir
+                 * @param customFileFilter  remember to filter out directories. And then filter the files you want.
+                 */
+                static void addFileListToArlis(ArrayList<String> arlis, String srcDir, FileFilter customFileFilter){
                     //ArrayList<String> filePathes = new ArrayList<String>();
                     File root = new File(srcDir);
-                    traverse(root, arlis); // traverses and adds each filepath to the arlis.
+                    traverse(root, arlis, customFileFilter); // traverses and adds each filepath to the arlis.
                 }
                 
-                public static void traverse(File dir, ArrayList<String> fileCollection){
+                /**
+                 * 
+                 * @param dir
+                 * @param fileCollection
+                 * @param customFileFilter  when NULL, uses "default" filter C_FILE_FILTER: which just filters *.java files
+                 *                          when not NULL uses this filter to filter the files.
+                 */
+                public static void traverse(File dir, ArrayList<String> fileCollection, FileFilter customFileFilter){
                     File[] files;
                     File[] dirs;
                     // get directory contents
-                    files = dir.listFiles(C_FILE_FILTER);
+                    if ( customFileFilter == null){
+                        // TODO: this possibility to pass null parameter should be temporary.
+                        // there should always be some parameter.
+                        files = dir.listFiles(C_DFAULT_ALL_JAVA_FILE_FILTER);
+                    }
+                    else{
+                       files = dir.listFiles(customFileFilter);
+                    }
                     dirs = dir.listFiles(C_DIR_FILTER);
                     
                     // files: add to list
@@ -544,7 +576,7 @@ class LibMake
                     }
                     // directories: traverse
                     for(File d: dirs ){
-                        traverse(d, fileCollection);
+                        traverse(d, fileCollection, customFileFilter);
                     }
                 }
 
@@ -722,7 +754,7 @@ class LibMake
                 /**
                  * Checks and accepts *.java or *.JAVA files.
                  */
-                private final static FileFilter C_FILE_FILTER = new FileFilter() {
+                private final static FileFilter C_DFAULT_ALL_JAVA_FILE_FILTER = new FileFilter() {
                     @Override
                     public boolean accept(File pathname) {
                                if ( pathname.isDirectory()){
@@ -730,6 +762,24 @@ class LibMake
                                }
                                
                                return pathname.getName().toLowerCase().endsWith(".java");
+                               //                        ^^^^^^^^^^^
+                               //                keep in mind that we are using case insensitive
+                               //                   verification here.
+                    }
+                };
+
+                /**
+                 * Checks and accepts *.java or *.JAVA files.
+                 */
+                private final static FileFilter C_DEFAULT_ALL_NON_DIRECTORIES_FILE_FILTER = new FileFilter() {
+                    @Override
+                    public boolean accept(File pathname) {
+                               if ( pathname.isDirectory()){
+                                   return false;
+                               }
+                               
+                               return true; // we accept everything. Maybe even resources like txt or png.
+                               //return pathname.getName().toLowerCase().endsWith(".java");
                                //                        ^^^^^^^^^^^
                                //                keep in mind that we are using case insensitive
                                //                   verification here.
