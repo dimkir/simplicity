@@ -134,7 +134,7 @@ class LibMake
 		* If compiler results in error, then prints out stderr to console.
 		* And throws LibMakeEx exception.
 		*/
-		void compileClasses(int lineOffset) throws LibMakeEx
+		void compileClasses(final int lineOffset) throws LibMakeEx
 		{
 				String wkd = System.getProperty("user.dir");
 				dprintln("Working Directory: " + wkd, lineOffset);
@@ -144,7 +144,7 @@ class LibMake
 					//String cmd = "../java/bin/javac -verbose -d bin -target 1.6 -source 1.6 -sourcepath src -cp ../core/library/core.jar src/simplicity/*.java  -bootclasspath ../java/lib/rt.jar";
 					String[] arcmd = {
                                                             getJavacPath(),
-							   // "-verbose",  // with -verbose on when running on Windows it never returns
+							    "-verbose",  // with -verbose on when running on Windows it never returns
 							   "-d", "bin",
 							   "-target" , "1.6",
 							   "-source", "1.6",
@@ -156,30 +156,38 @@ class LibMake
 					try
 					{
 					 // p = Runtime.getRuntime().exec(cmd);
-					 p = Runtime.getRuntime().exec(arcmd);
+//					 p = Runtime.getRuntime().exec(arcmd);
                                          
-                                         emptyErrorStream(p, lineOffset); // this is kinda dirty hack
-					  int rez = p.waitFor();
+                                         int rez = safeExec(arcmd, null, null, new IConLogger() {
+                                             @Override
+                                             public void conLogLn(String s) {
+                                                 dprintln( s, lineOffset);
+//                                                 dprintln("^[[5;34;42m" + s, lineOffset);
+//                                                 dprintln("\033[22;31m " + s, lineOffset);  // looks like ansy.sys version. prob works in linux
+                                             }
+                                         });
+                                         //emptyErrorStream(p, lineOffset); // this is kinda dirty hack
+//					  int rez = p.waitFor();
 
-					  
-					  
 					  if ( rez != 0 ){  // error
 					     // output error buffer
-						 printStream(p.getErrorStream(), lineOffset);
+						// printStream(p.getErrorStream(), lineOffset);
 						 throw new LibMakeEx("Compile failed with code: " + rez);
 					  }
 					  dprintln("Compilation of library was successful.",  lineOffset);
                                           dprintln("Compiler exit code (" + rez + ")", lineOffset);
-					  printStream(p.getInputStream(), lineOffset);
+//					  printStream(p.getInputStream(), lineOffset);
 					  // else success
-					 
 
 					}
-					catch(IOException e){
-					  e.printStackTrace();
+					catch(IOException ex){
+					  ex.printStackTrace();
+                                          throw new LibMakeEx(ex);
+                                                  
 					}		
 					catch(InterruptedException e){
 					  e.printStackTrace();
+                                          throw new LibMakeEx(e);
 					}
 		 
 		}
