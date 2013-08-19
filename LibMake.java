@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -142,23 +143,32 @@ class LibMake
                                 String srcDir = wkd + File.separator  + "src"; 
 				    Process p;
 					//String cmd = "../java/bin/javac -verbose -d bin -target 1.6 -source 1.6 -sourcepath src -cp ../core/library/core.jar src/simplicity/*.java  -bootclasspath ../java/lib/rt.jar";
+                                        ArrayList<String> cmdArlis = new ArrayList<String>();
 					String[] arcmd = {
                                                             getJavacPath(),
-							    "-verbose",  // with -verbose on when running on Windows it never returns
+							   // "-verbose",  // with -verbose on when running on Windows it never returns
 							   "-d", "bin",
 							   "-target" , "1.6",
 							   "-source", "1.6",
 							   "-sourcepath", srcDir ,  // TODO: should this be in dquotes? What if full path has spaces?
 							   "-cp", "../core/library/core.jar",
-							   "-bootclasspath",  "../java/lib/rt.jar",
-                                                           getFileListAsString(srcDir)
+							   "-bootclasspath",  "../java/lib/rt.jar"
 							};
+                                        Collections.addAll(cmdArlis, arcmd); // hitorically we were setting up parameters as string array
+                                                                            // so it seems convenient to keep it like that
+                                                        
+                                        
+                                        addFileListToArlis(cmdArlis, srcDir); // searches directory for java files
+                                                                              // and adds their full path to arlis
+                                        String[] newCmdArray  = new String[cmdArlis.size()];
+                                        newCmdArray = cmdArlis.toArray(newCmdArray);
+                                        //getFileListAsString(srcDir)
 					try
 					{
 					 // p = Runtime.getRuntime().exec(cmd);
 //					 p = Runtime.getRuntime().exec(arcmd);
                                          
-                                         int rez = safeExec(arcmd, null, null, new IConLogger() {
+                                         int rez = safeExec(newCmdArray, null, null, new IConLogger() {
                                              @Override
                                              public void conLogLn(String s) {
                                                  dprintln( s, lineOffset);
@@ -513,6 +523,12 @@ class LibMake
                     File root = new File(srcDir);
                     traverse(root, filePathes);
                     return arlisToString(filePathes, ' ');
+                }
+                
+                static void addFileListToArlis(ArrayList<String> arlis, String srcDir){
+                    //ArrayList<String> filePathes = new ArrayList<String>();
+                    File root = new File(srcDir);
+                    traverse(root, arlis); // traverses and adds each filepath to the arlis.
                 }
                 
                 public static void traverse(File dir, ArrayList<String> fileCollection){
