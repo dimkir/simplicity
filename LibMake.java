@@ -8,8 +8,12 @@ import java.io.FileFilter;
 import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
 * This class attempts to compile your library from SIMPLICITY-J template.
@@ -19,6 +23,34 @@ class LibMake
 {
 		private static final int C_DEFAULT_TEXT_LINE_WIDTH = 80; // we assume screen is 80chars wide
 		private static final int C_DEF_OFFSET = 8;
+
+
+                /**
+                 * Attempts to execute command, and make sure that full stream buffers do not stall
+                 * the program execution.
+                 * @param cmdArray stringar, command to execute
+                 * @param environment stringar, can be null
+                 * @param newWorkingDirectory working directory from which command will be executed
+                 * @param iConLogger use this interface instead of sysout. As it will conserve the padding.
+                 * @return 
+                 */
+                private static int safeExec(String[] cmdArray, String[] environment, File newWorkingDirectory, IConLogger iConLogger) throws IOException, InterruptedException {
+//					 Process p = Runtime.getRuntime().exec(cmd, null, newWorkingDirectory);
+					 Process p = Runtime.getRuntime().exec(cmdArray, null, newWorkingDirectory);
+                                         // set up gobblers and start them
+                                         StreamGobbler errGobbler = new StreamGobbler(p.getErrorStream(), "ERR", iConLogger);
+                                         
+                                         StreamGobbler inputGobbler = new StreamGobbler(p.getInputStream(), "OUT", iConLogger); // here
+                                                                                                                    // we think from perspective of java
+                                                                                                                    // so what for jave is InputStream
+                                                                                                                    // is actually output-steam of the program
+                                         errGobbler.start();
+                                         inputGobbler.start();
+                                      
+					 
+                                         int rez = p.waitFor(); 
+                                         return rez;
+                }
 		
 		/**
 		* Attempts to make library.
@@ -27,7 +59,7 @@ class LibMake
 		{
 		     int lineOffset = C_DEF_OFFSET;
 			 linePrint("Compiling library" ,  lineOffset, '-');
-		     compileClasses(lineOffset + C_DEF_OFFSET);
+                         compileClasses(lineOffset + C_DEF_OFFSET);
 			 dprintln("");
 			 
 			 linePrint("Putting library into JAR" ,  lineOffset , '-');
@@ -125,6 +157,8 @@ class LibMake
 					{
 					 // p = Runtime.getRuntime().exec(cmd);
 					 p = Runtime.getRuntime().exec(arcmd);
+                                         
+                                         emptyErrorStream(p, lineOffset); // this is kinda dirty hack
 					  int rez = p.waitFor();
 
 					  
@@ -169,7 +203,7 @@ class LibMake
 		}
 
 		
-		static void packClassesIntoJAR(int outputPaddingOffset) throws LibMakeEx
+		static void packClassesIntoJAR(final int outputPaddingOffset) throws LibMakeEx
 		{
 					Process p;
 					File newWorkingDirectory = dirRelativeToCurrent("bin");
@@ -194,27 +228,35 @@ class LibMake
 					try
 					{
 					 //p = Runtime.getRuntime().exec(cmd, null, newWorkingDirectory);
-					 p = Runtime.getRuntime().exec(cmdArray, null, newWorkingDirectory);
-					  int rez = p.waitFor();
-
+//					 p = Runtime.getRuntime().exec(cmdArray, null, newWorkingDirectory);
+//					  int rez = p.waitFor();
+                                          
+                                          int rez = safeExec(cmdArray, null, newWorkingDirectory, new IConLogger() { 
+                                               public void conLogLn(String msg){
+                                                   dprintln(msg, outputPaddingOffset);
+                                               }
+                                          });
+                                          
 					  dprintln("Exit result returned: " + rez, outputPaddingOffset);
 					  
 					  if ( rez != 0 ){  // error
 					     // output error buffer
-						 printStream(p.getErrorStream(), outputPaddingOffset);
+						 //printStream(p.getErrorStream(), outputPaddingOffset);
 						 throw new LibMakeEx("JARring failed with code: " + rez);
 					  }
 					  
-					  printStream(p.getInputStream(), outputPaddingOffset);
+					 // printStream(p.getInputStream(), outputPaddingOffset);
 					  // else success
 					 
 
 					}
 					catch(IOException e){
 					  e.printStackTrace();
+                                          throw new LibMakeEx(e);
 					}		
 					catch(InterruptedException e){
 					  e.printStackTrace();
+                                          throw new LibMakeEx(e);
 					}	
 					
 		}
@@ -511,6 +553,29 @@ class LibMake
                      }
                      return sb.toString();
                 }
+
+                /**
+                 * This is just helper temporary solution, which 
+                 * empties err stream  of the process (in our case javac)
+                 * so that it doesn't hang the execution.
+                 * This is bad hack as per this tutorial:
+                 * {@link http://www.javaworld.com/javaworld/jw-12-2000/jw-1229-traps.html?page=3}
+                 */
+                private static void emptyErrorStream(Process proc, int lineOffset) {
+                    try {
+                        InputStream stderr = proc.getErrorStream();
+                        InputStreamReader isr = new InputStreamReader(stderr);
+                        BufferedReader br = new BufferedReader(isr);
+                        String line = null;
+                        dprintln("<ERROR>", lineOffset);
+                        while ( (line = br.readLine()) != null)
+                            dprintln(line, lineOffset);
+                        dprintln("</ERROR>", lineOffset);
+                        
+                    } catch (IOException ex) {
+                        Logger.getLogger(LibMake.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
 	
 		/**
 		* Our local exception
@@ -662,5 +727,84 @@ class LibMake
                 };
                         
 
+        /**
+         * This is helper class which "consumes" out and err streams
+         * supplied by the process.
+         * As per article
+         * {@link http://www.javaworld.com/javaworld/jw-12-2000/jw-1229-traps.html?page=4}
+         */ 
+        static class StreamGobbler extends Thread
+        {
+            InputStream is;
+            String type;
+            OutputStream os;
+            
+            /**
+             * Through this interface we output strings.
+             */
+            IConLogger mConLogger;
+
+            StreamGobbler(InputStream is, String type)
+            {
+                this.is = is;
+                this.type = type;
+                this.os = null;
+                mConLogger = null;
+            }
+            
+            StreamGobbler(InputStream is, String type, IConLogger conLogger){
+                 this.is = is;
+                this.type = type;
+                this.os = null;
+                mConLogger = conLogger;
+            }
+            
+            StreamGobbler(InputStream is, String type, OutputStream redirect)
+            {
+                this.is = is;
+                this.type = type;
+                this.os = redirect;
+            }
+
+            public void run()
+            {
+                try
+                {
+                    PrintWriter pw = null;
+                    if (os != null)
+                        pw = new PrintWriter(os);
+
+                    InputStreamReader isr = new InputStreamReader(is);
+                    BufferedReader br = new BufferedReader(isr);
+                    String line=null;
+                    while ( (line = br.readLine()) != null)
+                    {
+                        if (pw != null){
+                            pw.println(line);
+                        }
+                     
+                        if ( mConLogger != null){
+                             mConLogger.conLogLn(line);
+                        }
+                        
+                        //System.out.println(type + ">" + line);    
+                    }
+                    
+                    if (pw != null){
+                        pw.flush();
+                    }
+                } catch (IOException ioe)
+                    {
+                    ioe.printStackTrace();  
+                    }
+            }
+        }//class StreamGobbler                
+                
+        
+        
+        interface IConLogger
+        {
+             void conLogLn(String s);
+        }
   
-}
+}// class LibMake
